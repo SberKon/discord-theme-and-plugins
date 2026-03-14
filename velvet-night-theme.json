@@ -23,6 +23,9 @@
         "TEXT_NORMAL": [
             "#e0def4"
         ],
+        "TEXT_DEFAULT": [
+            "#e0def4"
+        ],
         "TEXT_MUTED": [
             "#6e6a86"
         ],
@@ -37,6 +40,9 @@
         ],
         "TEXT_SECONDARY": [
             "#c4a7e7"
+        ],
+        "TEXT_FEEDBACK_CRITICAL": [
+            "#eb6f92"
         ],
         "INPUT_PLACEHOLDER_TEXT": [
             "#908caa"
@@ -104,6 +110,9 @@
         "CARD_SECONDARY_BG": [
             "#393552"
         ],
+        "CARD_BACKGROUND_DEFAULT": [
+            "#2a273f"
+        ],
         "BG_BASE_PRIMARY": [
             "#2a273f"
         ],
@@ -122,6 +131,15 @@
         "SHEET_BACKGROUND": [
             "#2a273f"
         ],
+        "BORDER_MUTED": [
+            "#44415a"
+        ],
+        "BORDER_FAINT": [
+            "#393552"
+        ],
+        "BORDER_STRONG": [
+            "#56526e"
+        ],
         "REDESIGN_ACTIVITY_CARD_BACKGROUND": [
             "#393552"
         ],
@@ -130,6 +148,9 @@
         ],
         "REDESIGN_BUTTON_SECONDARY_BORDER": [
             "#2a283e"
+        ],
+        "REDESIGN_BUTTON_PRIMARY_BACKGROUND": [
+            "#b090d4"
         ],
         "REDESIGN_CHANNEL_CATEGORY_NAME_TEXT": [
             "#e0def4"
