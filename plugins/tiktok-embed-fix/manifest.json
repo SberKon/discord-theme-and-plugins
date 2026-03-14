@@ -1,0 +1,10 @@
+{
+  "name": "TikTok Embed Fix",
+  "description": "Fixes TikTok embeds by replacing links with fixtiktok.com — works on messages from you and others. Visual only, original links stay untouched.",
+  "authors": [
+    {
+      "name": "you",
+      "id": "0"
+    }
+  ]
+}
