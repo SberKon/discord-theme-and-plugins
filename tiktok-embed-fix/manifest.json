@@ -1,12 +1,13 @@
 {
   "name": "TikTok Embed Fix",
-  "description": "Fixes TikTok embeds by injecting fxTikTok while keeping the original link",
+  "description": "Fixes TikTok embeds using fxTikTok while keeping the original link",
   "authors": [
     {
-      "name": "SberKon"
+      "name": "SberKon",
+      "id": "0"
     }
   ],
-  "main": "plugin.js",
+  "main": "src/index.tsx",
   "vendetta": {
     "icon": "ic_fluent_video_24_regular"
   }
