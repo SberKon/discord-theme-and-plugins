@@ -1,10 +1,10 @@
 {
     "name": "Velvet Night",
-    "description": "Something beautiful. All natural pine, faux fur and a bit of soho vibes for the classy minimalist.",
+    "description": "Deep purple nights and soft violet dreams — a theme that feels like velvet against your eyes.",
     "authors": [
         {
             "name": "SberKon",
-            "id": "807170846497570848"
+            "id": "390918110196269058"
         }
     ],
     "semanticColors": {
@@ -34,6 +34,9 @@
         ],
         "TEXT_PRIMARY": [
             "#e0def4"
+        ],
+        "TEXT_SECONDARY": [
+            "#c4a7e7"
         ],
         "INPUT_PLACEHOLDER_TEXT": [
             "#908caa"
@@ -75,7 +78,7 @@
             "#2a273f"
         ],
         "BACKGROUND_NESTED_FLOATING": [
-            "#232136"
+            "#2a273f"
         ],
         "BACKGROUND_MESSAGE_HOVER": [
             "#44415a"
@@ -98,6 +101,9 @@
         "CARD_PRIMARY_BG": [
             "#2a273f"
         ],
+        "CARD_SECONDARY_BG": [
+            "#393552"
+        ],
         "BG_BASE_PRIMARY": [
             "#2a273f"
         ],
@@ -109,9 +115,6 @@
         ],
         "BG_BACKDROP": [
             "#000000b2"
-        ],
-        "CARD_SECONDARY_BG": [
-            "#2a273f"
         ],
         "MODAL_BACKGROUND": [
             "#2a273f"
@@ -163,6 +166,30 @@
         ],
         "CONTROL_BRAND_FOREGROUND_NEW": [
             "#c4a7e7"
+        ],
+        "DEPRECATED_CARD_BG": [
+            "#2a273f"
+        ],
+        "DEPRECATED_CARD_EDITABLE_BG": [
+            "#393552"
+        ],
+        "DEPRECATED_STORE_BG": [
+            "#232136"
+        ],
+        "DEPRECATED_TEXT_INPUT_BG": [
+            "#393552"
+        ],
+        "DEPRECATED_TEXT_INPUT_BORDER": [
+            "#56526e"
+        ],
+        "DEPRECATED_TEXT_INPUT_BORDER_HOVER": [
+            "#908caa"
+        ],
+        "DEPRECATED_TEXT_INPUT_BORDER_DISABLED": [
+            "#44415a"
+        ],
+        "DEPRECATED_TEXT_INPUT_PREFIX": [
+            "#908caa"
         ]
     },
     "rawColors": {
@@ -193,9 +220,9 @@
         "PLUM_3": "#e0def4",
         "PLUM_4": "#c4a7e750",
         "PLUM_6": "#c4a7e7",
-        "BRAND_260": "#d4afef",
+        "BRAND_260": "#d4b8f0",
         "BRAND_360": "#c4a7e7",
-        "BRAND_500": "#c4a7e7",
+        "BRAND_500": "#b090d4",
         "BRAND_560": "#9e6bc4",
         "BLUE_345": "#00b0f4",
         "GREEN_100": "#57f287",
