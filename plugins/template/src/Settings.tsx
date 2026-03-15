@@ -13,17 +13,13 @@ export default () => {
 
 		logger.log = function(...args: any[]) {
 			const message = args.join(" ");
-			if (message.includes("TikTok")) {
-				setLogs(prev => [message, ...prev.slice(0, 9)]);
-			}
+			setLogs(prev => [message, ...prev.slice(0, 14)]);
 			return originalLog.apply(this, args);
 		};
 
 		logger.warn = function(...args: any[]) {
 			const message = args.join(" ");
-			if (message.includes("TikTok")) {
-				setLogs(prev => [`⚠️ ${message}`, ...prev.slice(0, 9)]);
-			}
+			setLogs(prev => [`⚠️ ${message}`, ...prev.slice(0, 14)]);
 			return originalWarn.apply(this, args);
 		};
 
@@ -40,15 +36,15 @@ export default () => {
 			</FormText>
 			<FormDivider />
 			<FormText style={{ color: "#a8aab4", marginTop: 10 }}>
-				Debug Logs (last 10):
+				Debug Logs (last 15):
 			</FormText>
 			{logs.length === 0 ? (
 				<FormText style={{ color: "#72767d", marginTop: 5 }}>
-					No TikTok link replacements yet...
+					Loading logs...
 				</FormText>
 			) : (
 				logs.map((log, i) => (
-					<FormText key={i} style={{ color: "#b5bac1", fontSize: 12, marginTop: 3 }}>
+					<FormText key={i} style={{ color: "#b5bac1", fontSize: 11, marginTop: 2, fontFamily: "monospace" }}>
 						{log}
 					</FormText>
 				))
