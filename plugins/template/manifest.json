@@ -1,6 +1,6 @@
 {
     "name": "TikTok Embed Fix",
-    "description": "Fixes TikTok embeds by replacing links with fixtiktok.com — works on messages from you and others. Visual only, original links stay untouched.",
+    "description": "Automatically converts TikTok links to fixtiktok.com — visual only, original links untouched.",
     "authors": [
         {
             "name": "SberKon",
