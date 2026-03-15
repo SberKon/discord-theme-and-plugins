@@ -1,79 +1,69 @@
 import { logger } from "@vendetta";
-import { patcher } from "@vendetta/ui";
+import { findByProps } from "@vendetta/metro";
+import { instead } from "@vendetta/patcher";
 import Settings from "./Settings";
 
-const TIKTOK_REGEX = /https?:\/\/(vm|vt|www)\.tiktok\.com\/([^\s<>"{}|\\^`\[\]]*)/gi;
+const HTTP_REGEX = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/g;
+const invisibleChar = "\x00";
 
-function getTikTokFixUrl(url) {
-    try {
-        const tiktokUrl = new URL(url);
-        const path = tiktokUrl.pathname + tiktokUrl.search;
-        return `https://fixtiktok.com${path}`;
-    } catch {
-        return url;
-    }
+function replaceTikTokLinks(text: string): string {
+	if (!text || typeof text !== "string") return text;
+	
+	return text.replace(/https?:\/\/(vm|vt|www)\.tiktok\.com\/([^\s<>"{}|\\^`\[\]]*)/gi, (match) => {
+		try {
+			const url = new URL(match);
+			const path = url.pathname + url.search;
+			return `https://fixtiktok.com${path}`;
+		} catch {
+			return match;
+		}
+	});
 }
 
-let unpatches = [];
+function processRows(rows: any[]) {
+	for (const row of rows) {
+		if (row?.message?.content && typeof row.message.content === "string") {
+			const originalContent = row.message.content;
+			const modifiedContent = replaceTikTokLinks(originalContent);
+			
+			if (originalContent !== modifiedContent) {
+				row.message.content = modifiedContent;
+				logger.log("TikTok link replaced in message");
+			}
+		}
+	}
+}
+
+let unpatch: (() => void) | null = null;
 
 export default {
-    onLoad: () => {
-        logger.log("TikTok Embed Fix loaded!");
-        
-        try {
-            // Patch React.createElement to intercept all rendered components
-            const React = require("react");
-            
-            unpatches.push(
-                patcher.before(React, "createElement", (args) => {
-                    const [type, props] = args;
-                    
-                    // Patch text nodes
-                    if (typeof args[2] === "string") {
-                        args[2] = args[2].replace(TIKTOK_REGEX, getTikTokFixUrl);
-                    }
-                    
-                    // Patch children array
-                    if (Array.isArray(args[2])) {
-                        args[2] = args[2].map(child => {
-                            if (typeof child === "string") {
-                                return child.replace(TIKTOK_REGEX, getTikTokFixUrl);
-                            }
-                            return child;
-                        });
-                    }
-                    
-                    // Patch children in props
-                    if (props?.children && typeof props.children === "string") {
-                        props.children = props.children.replace(TIKTOK_REGEX, getTikTokFixUrl);
-                    }
-                    
-                    if (props?.children && Array.isArray(props.children)) {
-                        props.children = props.children.map(child => {
-                            if (typeof child === "string") {
-                                return child.replace(TIKTOK_REGEX, getTikTokFixUrl);
-                            }
-                            return child;
-                        });
-                    }
-                    
-                    // Patch href and src attributes
-                    if (props?.href && typeof props.href === "string") {
-                        props.href = props.href.replace(TIKTOK_REGEX, getTikTokFixUrl);
-                    }
-                })
-            );
-            
-            logger.log("TikTok Embed Fix applied!");
-        } catch (e) {
-            logger.warn("Failed to apply patch:", e.message);
-        }
-    },
-    
-    onUnload: () => {
-        logger.log("TikTok Embed Fix unloaded!");
-        unpatches.forEach(unpatch => unpatch?.());
-    },
-    
-    settings: Settings,
+	onLoad: () => {
+		logger.log("TikTok Embed Fix loaded!");
+		
+		try {
+			const { MessagesHandlers } = findByProps("MessagesHandlers");
+			
+			if (MessagesHandlers) {
+				unpatch = instead(
+					"renderRows",
+					MessagesHandlers.prototype,
+					(args, original) => {
+						const rows = args[0];
+						if (Array.isArray(rows)) {
+							processRows(rows);
+						}
+						return original.apply(this, args);
+					}
+				);
+				logger.log("TikTok Embed Fix patched successfully");
+			}
+		} catch (e) {
+			logger.warn("Failed to patch MessagesHandlers:", e);
+		}
+	},
+	onUnload: () => {
+		logger.log("TikTok Embed Fix unloaded!");
+		unpatch?.();
+	},
+	settings: Settings,
 }
