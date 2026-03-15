@@ -2,18 +2,16 @@ import { logger } from "@vendetta";
 import { patcher } from "@vendetta/ui";
 import Settings from "./Settings";
 
-function replaceTikTokLinks(text) {
-    if (!text || typeof text !== "string") return text;
-    
-    return text.replace(/https?:\/\/(vm|vt|www)\.tiktok\.com\/([^\s<>"{}|\\^`\[\]]*)/gi, (match) => {
-        try {
-            const url = new URL(match);
-            const path = url.pathname + url.search;
-            return `https://fixtiktok.com${path}`;
-        } catch {
-            return match;
-        }
-    });
+const TIKTOK_REGEX = /https?:\/\/(vm|vt|www)\.tiktok\.com\/([^\s<>"{}|\\^`\[\]]*)/gi;
+
+function getTikTokFixUrl(url) {
+    try {
+        const tiktokUrl = new URL(url);
+        const path = tiktokUrl.pathname + tiktokUrl.search;
+        return `https://fixtiktok.com${path}`;
+    } catch {
+        return url;
+    }
 }
 
 let unpatch;
@@ -23,49 +21,56 @@ export default {
         logger.log("TikTok Embed Fix loaded!");
         
         try {
-            // Patch the message component rendering
-            const modules = require("@vendetta/modules");
-            const MessageStore = modules.MessageStore || modules.default?.MessageStore;
+            // Get the message component
+            const { getByStoreName } = require("@vendetta/metro");
+            const MessageStore = getByStoreName?.("MessageStore");
             
-            if (MessageStore) {
-                unpatch = patcher.instead(
-                    MessageStore,
-                    "getMessage",
-                    (args, original) => {
-                        const result = original(...args);
-                        if (result?.content) {
-                            result.content = replaceTikTokLinks(result.content);
-                        }
-                        return result;
-                    }
-                );
-                logger.log("Message store patched successfully");
+            if (!MessageStore) {
+                throw new Error("MessageStore not found");
             }
-        } catch (e) {
-            logger.warn("Message store patch failed, trying alternative:", e);
             
-            try {
-                // Alternative: patch render function
-                const React = require("react");
-                unpatch = patcher.before(
-                    React,
-                    "createElement",
-                    (args) => {
-                        if (args[0]?.name?.includes("Message")) {
-                            if (args[1]?.content) {
-                                args[1].content = replaceTikTokLinks(args[1].content);
+            // Patch getMessage to transform TikTok links
+            unpatch = patcher.instead(
+                MessageStore,
+                "getMessage",
+                function(args, original) {
+                    const result = original.apply(this, args);
+                    
+                    if (result?.embeds && Array.isArray(result.embeds)) {
+                        result.embeds = result.embeds.map(embed => {
+                            if (embed?.url) {
+                                const match = embed.url.match(/https?:\/\/(vm|vt|www)\.tiktok\.com\//);
+                                if (match) {
+                                    return {
+                                        ...embed,
+                                        url: getTikTokFixUrl(embed.url),
+                                        original_url: embed.url,
+                                    };
+                                }
                             }
-                        }
+                            return embed;
+                        });
                     }
-                );
-            } catch (e2) {
-                logger.warn("All patches failed:", e2);
-            }
+                    
+                    // Also fix links in content
+                    if (result?.content) {
+                        result.content = result.content.replace(TIKTOK_REGEX, getTikTokFixUrl);
+                    }
+                    
+                    return result;
+                }
+            );
+            
+            logger.log("TikTok Embed Fix patches applied");
+        } catch (e) {
+            logger.warn("Failed to apply patches:", e.message);
         }
     },
+    
     onUnload: () => {
         logger.log("TikTok Embed Fix unloaded!");
         unpatch?.();
     },
+    
     settings: Settings,
 }
