@@ -1,97 +1,86 @@
 import { logger } from "@vendetta";
-import { findByProps } from "@vendetta/metro";
-import { instead } from "@vendetta/patcher";
 import Settings from "./Settings";
 
-function replaceTikTokLinks(text: string): string {
-	if (!text || typeof text !== "string") return text;
-	
-	const replaced = text.replace(/https?:\/\/(vm|vt|www)\.tiktok\.com\/([^\s<>"{}|\\^`\[\]]*)/gi, (match) => {
-		try {
-			const url = new URL(match);
-			const path = url.pathname + url.search;
-			logger.log(`Replacing: ${match} -> https://fixtiktok.com${path}`);
-			return `https://fixtiktok.com${path}`;
-		} catch (e) {
-			logger.warn("URL parse error:", match);
-			return match;
-		}
-	});
-	
-	return replaced;
-}
+// Нові імпорти
+import { Patcher } from "@vendetta/patcher";
+import { findByDisplayName, findByProps } from "@vendetta/metro";
+import { isTikTokLink, convertToFixTikTok, TIKTOK_LINK_REGEX } from "./convert";
 
-function processContent(content: any): any {
-	if (typeof content === "string") {
-		return replaceTikTokLinks(content);
-	} else if (Array.isArray(content)) {
-		return content.map(c => processContent(c));
-	} else if (content && typeof content === "object") {
-		for (const key in content) {
-			if (typeof content[key] === "string") {
-				content[key] = replaceTikTokLinks(content[key]);
-			} else if (Array.isArray(content[key]) || typeof content[key] === "object") {
-				processContent(content[key]);
+const PATCHES: Array<() => void> = [];
+
+function tryPatchComponent(displayName: string) {
+	try {
+		const comp = findByDisplayName(displayName) as any;
+		if (!comp) return false;
+
+		// patch default export or the component itself
+		const target = comp.default ? comp : comp;
+		if (!target) return false;
+
+		const unpatch = Patcher.before(displayName, target, "default" in target ? "default" as any : "render", (thisArg: any, args: any[]) => {
+			// args[0] is usually props
+			const props = args[0];
+			if (!props) return;
+
+			// Replace single embed url
+			if (props.embed && typeof props.embed.url === "string" && isTikTokLink(props.embed.url)) {
+				props.embed = { ...props.embed, url: convertToFixTikTok(props.embed.url) };
 			}
-		}
-	}
-	return content;
-}
 
-let unpatch: (() => void) | null = null;
+			// Replace embeds array
+			if (Array.isArray(props.embeds)) {
+				props.embeds = props.embeds.map((e: any) => {
+					if (e && typeof e.url === "string" && isTikTokLink(e.url)) {
+						return { ...e, url: convertToFixTikTok(e.url) };
+					}
+					return e;
+				});
+			}
+
+			// Replace link preview props e.g., props.url or props.link
+			if (typeof props.url === "string" && isTikTokLink(props.url)) {
+				props.url = convertToFixTikTok(props.url);
+			}
+			if (typeof props.link === "string" && isTikTokLink(props.link)) {
+				props.link = convertToFixTikTok(props.link);
+			}
+
+			// If component receives raw children / text, inject a simple embed url fix by replacing tiktok links inside text.
+			if (typeof props.children === "string") {
+				props.children = props.children.replace(TIKTOK_LINK_REGEX, (m: string) => convertToFixTikTok(m));
+			}
+		});
+
+		PATCHES.push(() => unpatch());
+		logger.log(`[TikTokEmbedFix] patched ${displayName}`);
+		return true;
+	} catch (e) {
+		logger.warn("[TikTokEmbedFix] patch failed", e);
+		return false;
+	}
+}
 
 export default {
 	onLoad: () => {
-		logger.log("TikTok Embed Fix loaded!");
-		
-		try {
-			const RowsModule = findByProps("processRenderableContent");
-			
-			if (RowsModule?.processRenderableContent) {
-				logger.log("Found processRenderableContent");
-				
-				unpatch = instead(
-					"processRenderableContent",
-					RowsModule,
-					(args, original) => {
-						const result = original.apply(this, args);
-						if (result?.rows) {
-							logger.log("Processing rows...");
-							for (const row of result.rows) {
-								if (row?.message?.content) {
-									row.message.content = replaceTikTokLinks(row.message.content);
-								}
-							}
-						}
-						return result;
-					}
-				);
-			} else {
-				logger.warn("processRenderableContent not found, trying MessageStore");
-				const MessageStore = findByProps("getMessage");
-				
-				if (MessageStore?.getMessage) {
-					unpatch = instead(
-						"getMessage",
-						MessageStore,
-						(args, original) => {
-							const result = original.apply(this, args);
-							if (result?.content) {
-								result.content = replaceTikTokLinks(result.content);
-							}
-							return result;
-						}
-					);
-					logger.log("Patched getMessage");
-				}
-			}
-		} catch (e) {
-			logger.warn("TikTok Embed Fix patch failed:", e);
+		logger.log("TikTok Embed Fix: loading");
+
+		// Список кандидатів для патчингу - у вашій збірці можуть бути інші імена, додайте їх якщо потрібно
+		const candidates = ["LinkPreview", "Preview", "Embed", "RichPreview", "MessageEmbed", "VideoEmbed"];
+
+		for (const name of candidates) {
+			tryPatchComponent(name);
 		}
+
+		// Фолбек: інколи компоненти мають інші імена — можна знайти за пропсами
+		const fb = findByProps("LinkPreview", "default");
+		if (fb) tryPatchComponent((fb as any).displayName || "LinkPreviewFallback");
 	},
 	onUnload: () => {
-		logger.log("TikTok Embed Fix unloaded!");
-		unpatch?.();
+		logger.log("TikTok Embed Fix: unloading");
+		for (const unpatch of PATCHES) {
+			try { unpatch(); } catch {}
+		}
+		PATCHES.length = 0;
 	},
 	settings: Settings,
-}
+};
