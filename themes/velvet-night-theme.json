@@ -44,6 +44,9 @@
         "TEXT_FEEDBACK_CRITICAL": [
             "#eb6f92"
         ],
+        "TEXT_MENTION": [
+            "#c4a7e7"
+        ],
         "INPUT_PLACEHOLDER_TEXT": [
             "#908caa"
         ],
@@ -103,6 +106,15 @@
         ],
         "BACKGROUND_MENTIONED": [
             "#f6c17717"
+        ],
+        "BACKGROUND_MENTIONED_HOVER": [
+            "#f6c17725"
+        ],
+        "MENTION_FOREGROUND": [
+            "#c4a7e7"
+        ],
+        "MENTION_BACKGROUND": [
+            "#c4a7e720"
         ],
         "CARD_PRIMARY_BG": [
             "#2a273f"
@@ -278,32 +290,38 @@
         "RED_630": "#eb6f92",
         "RED_660": "#eb6f92",
         "RED_700": "#eb6f92",
-        "YELLOW_100": "#f6c177",
-        "YELLOW_130": "#f6c177",
-        "YELLOW_160": "#f6c177",
-        "YELLOW_200": "#f6c177",
-        "YELLOW_230": "#f6c177",
-        "YELLOW_260": "#f6c177",
-        "YELLOW_300": "#f6c177",
+        "YELLOW_100": "#f9e2af",
+        "YELLOW_130": "#f9e2af",
+        "YELLOW_160": "#f9e2af",
+        "YELLOW_200": "#f9e2af",
+        "YELLOW_230": "#f9d96a",
+        "YELLOW_260": "#f9d96a",
+        "YELLOW_300": "#f9d96a",
         "YELLOW_330": "#f6c177",
         "YELLOW_345": "#f6c177",
         "YELLOW_360": "#f6c177",
         "YELLOW_400": "#f6c177",
         "YELLOW_430": "#f6c177",
-        "YELLOW_460": "#f6c177",
-        "YELLOW_500": "#f6c177",
-        "YELLOW_530": "#f6c177",
-        "YELLOW_560": "#f6c177",
-        "YELLOW_600": "#f6c177",
-        "YELLOW_630": "#f6c177",
-        "YELLOW_660": "#f6c177",
-        "YELLOW_700": "#f6c177",
-        "YELLOW_730": "#f6c177",
-        "YELLOW_760": "#f6c177",
-        "YELLOW_800": "#f6c177",
-        "YELLOW_830": "#f6c177",
-        "YELLOW_860": "#f6c177",
-        "YELLOW_900": "#f6c177",
+        "YELLOW_460": "#f6b830",
+        "YELLOW_500": "#f6b830",
+        "YELLOW_530": "#f6b830",
+        "YELLOW_560": "#f6b830",
+        "YELLOW_600": "#f6b830",
+        "YELLOW_630": "#f6b830",
+        "YELLOW_660": "#f6b830",
+        "YELLOW_700": "#f6b830",
+        "YELLOW_730": "#f6b830",
+        "YELLOW_760": "#f6b830",
+        "YELLOW_800": "#f6b830",
+        "YELLOW_830": "#f6b830",
+        "YELLOW_860": "#f6b830",
+        "YELLOW_900": "#f6b830",
+        "ORANGE_800": "#56526e",
+        "ORANGE_700": "#393552",
+        "ORANGE_600": "#44415a",
+        "ORANGE_500": "#56526e",
+        "ORANGE_400": "#56526e",
+        "ORANGE_300": "#6e6a86",
         "WHITE": "#e0def4",
         "WHITE_500": "#e0def4",
         "WHITE_630": "#908caa"
