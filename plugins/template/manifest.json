@@ -1,6 +1,6 @@
 {
-    "name": "just test",
-    "description": "test",
+    "name": "TikTok Embed Fix",
+    "description": "Automatically converts TikTok links to fixtiktok.com — visual only, original links untouched.",
     "authors": [
         {
             "name": "SberKon",
