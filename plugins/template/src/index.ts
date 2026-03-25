@@ -3,318 +3,224 @@ import { before } from "@vendetta/patcher";
 import { storage } from "@vendetta/plugin";
 import Settings from "./Settings";
 
-// ─── Default settings ────────────────────────────────────────────────
-const DEFAULTS = {
-    embedColor: 6513919,        // #635BFF — tnktok purple-blue
+// ─── Settings helper ─────────────────────────────────────────────────
+const DEFAULTS: Record<string, any> = {
+    embedColor: 6513919,
+    footerText: "TikTok",
     showFooter: true,
-    sensitiveHandling: "warn",  // "warn" | "hide"
+    showAuthor: true,
+    showStats: true,
+    sensitiveMode: "normal",
 };
 
-function cfg(key: string): any {
-    const val = (storage as any)[key];
-    return val !== undefined ? val : (DEFAULTS as any)[key];
+function cfg(k: string): any {
+    const v = (storage as any)[k];
+    return v !== undefined ? v : DEFAULTS[k];
 }
 
-// ─── Domain detection ────────────────────────────────────────────────
-const TIKTOK_DOMAINS = [
-    "tiktok.com",
-    "www.tiktok.com",
-    "vt.tiktok.com",
-    "vm.tiktok.com",
-    "m.tiktok.com",
+// ─── Domain helpers ──────────────────────────────────────────────────
+const TIKTOK_HOSTS = [
+    "tiktok.com", "www.tiktok.com",
+    "vt.tiktok.com", "vm.tiktok.com", "m.tiktok.com",
 ];
 
 function isTikTokUrl(url: string): boolean {
     try {
-        const parsed = new URL(url);
-        return TIKTOK_DOMAINS.some(
-            (d) => parsed.hostname.toLowerCase() === d
-        );
-    } catch {
-        return false;
-    }
+        return TIKTOK_HOSTS.some((d) => new URL(url).hostname === d);
+    } catch { return false; }
 }
 
-function isTikTokEmbed(embed: any): boolean {
-    const url = embed.rawUrl || embed.url || "";
-    const provider = embed.provider?.name?.toLowerCase() || "";
-    return isTikTokUrl(url) || provider === "tiktok";
+function isTikTokEmbed(e: any): boolean {
+    return isTikTokUrl(e.rawUrl || e.url || "") ||
+        (e.provider?.name?.toLowerCase() || "") === "tiktok";
 }
 
-// ─── Content type detection ──────────────────────────────────────────
-
-function isSensitiveEmbed(embed: any): boolean {
-    // Zero-dimension video = sensitive marker
-    if (
-        embed.video &&
-        embed.video.width === 0 &&
-        embed.video.height === 0
-    ) {
-        return true;
-    }
-
-    const title = (embed.title || "").toLowerCase();
-    const sensitiveMarkers = [
-        "зайди в tiktok",
-        "переглянути відео",
-        "check out",
-        "watch this",
-        "sensitive content",
-    ];
-    if (sensitiveMarkers.some((m) => title.includes(m))) return true;
-
-    // Generic TikTok logo thumbnail = blocked content
-    const thumbUrl = embed.thumbnail?.url || "";
-    if (thumbUrl.includes("tiktok-logo")) return true;
-
+// ─── Detection ───────────────────────────────────────────────────────
+function isSensitive(e: any): boolean {
+    if (e.video && e.video.width === 0 && e.video.height === 0) return true;
+    const t = (e.title || "").toLowerCase();
+    if (["зайди в tiktok", "переглянути", "check out", "watch this"].some((m) => t.includes(m))) return true;
+    if ((e.thumbnail?.url || "").includes("tiktok-logo")) return true;
     return false;
 }
 
-function isPhotoPost(url: string): boolean {
+function isPhoto(url: string): boolean {
     return /\/photo\/\d+/.test(url);
 }
 
-// ─── Metadata extraction ────────────────────────────────────────────
-
+// ─── Metadata parsers ────────────────────────────────────────────────
 /** "TikTok · TRY-SAN" → "TRY-SAN" */
-function extractDisplayName(title: string | undefined): string | null {
-    if (!title) return null;
-    const m = title.match(/TikTok\s*[·•\-–]\s*(.+)/i);
+function getName(title?: string): string | null {
+    const m = title?.match(/TikTok\s*[·•\-–]\s*(.+)/i);
     return m ? m[1].trim() : null;
 }
 
-/** URL → "@username" */
-function extractHandle(url: string | undefined): string | null {
-    if (!url) return null;
-    const m = url.match(/@([^/?&#]+)/);
+/** URL → "@handle" */
+function getHandle(url?: string): string | null {
+    const m = url?.match(/@([^/?&#]+)/);
     return m ? `@${m[1]}` : null;
 }
 
-/**
- * Parse TikTok embed description.
- * UA format: "Уподобайки: 45K, коментарі: 630. «Hiromi Higuruma»"
- * EN format: "Likes: 45K, Comments: 630. «caption»"
- */
-function parseDescription(desc: string | undefined): {
-    likes?: string;
-    comments?: string;
-    caption?: string;
-} {
-    if (!desc) return {};
-    const result: any = {};
-
-    // Caption in «…» or "…" or "…"
-    const cm = desc.match(/[«\u201C\u201E](.+?)[»\u201D\u201F]/);
-    if (cm) result.caption = cm[1];
-
-    // Numbers (first ≈ likes, second ≈ comments)
-    const nums = desc.match(/\d[\d.,]*\s*[KkMmкКмМ]?/g);
+/** Parse TikTok description → likes, comments, caption */
+function parseDesc(d?: string): { likes?: string; comments?: string; caption?: string } {
+    if (!d) return {};
+    const r: any = {};
+    const cm = d.match(/[«\u201C\u201E](.+?)[»\u201D\u201F]/);
+    if (cm) r.caption = cm[1];
+    const nums = d.match(/\d[\d.,]*\s*[KkMmкК]?/g);
     if (nums) {
-        const cleaned = nums
-            .map((n) => n.replace(/\s/g, "").trim())
-            .filter((n) => n.length > 0);
-        if (cleaned.length >= 1) result.likes = cleaned[0];
-        if (cleaned.length >= 2) result.comments = cleaned[1];
+        const c = nums.map((n) => n.trim()).filter(Boolean);
+        if (c[0]) r.likes = c[0];
+        if (c[1]) r.comments = c[1];
     }
-
-    return result;
+    return r;
 }
 
-// ─── Embed builders ─────────────────────────────────────────────────
-
-/** Build author block */
-function buildAuthor(
-    title: string | undefined,
-    url: string | undefined
-): { name: string; url: string } {
-    const name = extractDisplayName(title);
-    const handle = extractHandle(url);
-
-    const authorName =
-        name && handle
-            ? `${name} (${handle})`
-            : name || handle || "TikTok";
-
-    const authorUrl = handle
-        ? `https://tiktok.com/${handle}`
-        : url || "https://tiktok.com";
-
-    return { name: authorName, url: authorUrl };
-}
-
-/** Build stats description line */
-function buildStatsLine(stats: {
-    likes?: string;
-    comments?: string;
-}): string | undefined {
-    if (!stats.likes && !stats.comments) return undefined;
-    return `**❤️ ${stats.likes || "?"} 💬 ${stats.comments || "?"}**`;
-}
-
-/** Copy thumbnail data from original embed */
-function copyThumbnail(src: any): any | undefined {
-    if (!src) return undefined;
+// ─── Builder helpers ─────────────────────────────────────────────────
+function mkAuthor(title?: string, url?: string): any {
+    if (!cfg("showAuthor")) return undefined;
+    const n = getName(title), h = getHandle(url);
     return {
-        url: src.url,
-        proxyURL: src.proxyURL || src.proxy_url,
-        width: src.width || 720,
-        height: src.height || 1280,
+        name: n && h ? `${n} (${h})` : n || h || "TikTok",
+        url: h ? `https://tiktok.com/${h}` : url || "https://tiktok.com",
     };
 }
 
-/** Copy video data from original embed */
-function copyVideo(src: any): any | undefined {
-    if (!src?.url) return undefined;
+function mkStats(s: { likes?: string; comments?: string }): string | undefined {
+    if (!cfg("showStats") || (!s.likes && !s.comments)) return undefined;
+    return `**❤️ ${s.likes || "?"} 💬 ${s.comments || "?"}**`;
+}
+
+function mkFooter(extra?: string): any {
+    if (!cfg("showFooter")) return undefined;
+    const base = cfg("footerText") || "TikTok";
+    return { text: extra ? `${base} • ${extra}` : base };
+}
+
+function cpThumb(t: any): any {
+    if (!t) return undefined;
     return {
-        url: src.url,
-        proxyURL: src.proxyURL || src.proxy_url,
-        width: src.width || 720,
-        height: src.height || 1280,
+        url: t.url, proxyURL: t.proxyURL || t.proxy_url,
+        width: t.width || 720, height: t.height || 1280,
     };
 }
 
-// ─── Video embed (tnktok style) ─────────────────────────────────────
-function buildVideoEmbed(embed: any): any {
-    const color = cfg("embedColor");
-    const showFooter = cfg("showFooter");
-    const url = embed.rawUrl || embed.url;
-    const author = buildAuthor(embed.title, url);
-    const stats = parseDescription(embed.description);
-    const statsLine = buildStatsLine(stats);
-
-    const result: any = {
-        type: "rich",
-        url,
-        color,
-        author,
+function cpVideo(v: any): any {
+    if (!v?.url) return undefined;
+    return {
+        url: v.url, proxyURL: v.proxyURL || v.proxy_url,
+        width: v.width || 720, height: v.height || 1280,
     };
-
-    if (statsLine) result.description = statsLine;
-
-    // Thumbnail (cover image)
-    const thumb = copyThumbnail(embed.thumbnail);
-    if (thumb) result.thumbnail = thumb;
-
-    // Video player
-    const video = copyVideo(embed.video);
-    if (video) result.video = video;
-
-    if (showFooter) result.footer = { text: "TikTok" };
-
-    return result;
 }
 
-// ─── Photo embed (tnktok style + photo count) ───────────────────────
-function buildPhotoEmbed(embed: any): any {
-    const color = cfg("embedColor");
-    const showFooter = cfg("showFooter");
-    const url = embed.rawUrl || embed.url;
-    const author = buildAuthor(embed.title, url);
-    const stats = parseDescription(embed.description);
+// ─── Build: Video (tnktok style) ─────────────────────────────────────
+function buildVideo(e: any): any {
+    const url = e.rawUrl || e.url;
+    const stats = parseDesc(e.description);
+    const r: any = { type: "rich", url, color: cfg("embedColor") };
+    const a = mkAuthor(e.title, url); if (a) r.author = a;
+    const sl = mkStats(stats); if (sl) r.description = sl;
+    const th = cpThumb(e.thumbnail); if (th) r.thumbnail = th;
+    const vi = cpVideo(e.video); if (vi) r.video = vi;
+    const f = mkFooter(); if (f) r.footer = f;
+    return r;
+}
 
+// ─── Build: Photo (tnktok style + count) ─────────────────────────────
+function buildPhoto(e: any): any {
+    const url = e.rawUrl || e.url;
+    const stats = parseDesc(e.description);
     const parts: string[] = [];
     if (stats.caption) parts.push(`**${stats.caption}**`);
+    const sl = mkStats(stats); if (sl) parts.push(sl);
 
-    const sl = buildStatsLine(stats);
-    if (sl) parts.push(sl);
-
-    const result: any = {
-        type: "rich",
-        url,
-        color,
-        author,
-    };
-
-    if (parts.length) result.description = parts.join("\n");
-
-    // Use thumbnail as main image
-    if (embed.thumbnail) {
-        result.image = {
-            url: embed.thumbnail.url,
-            proxyURL:
-                embed.thumbnail.proxyURL || embed.thumbnail.proxy_url,
-            width: embed.thumbnail.width,
-            height: embed.thumbnail.height,
+    const r: any = { type: "rich", url, color: cfg("embedColor") };
+    const a = mkAuthor(e.title, url); if (a) r.author = a;
+    if (parts.length) r.description = parts.join("\n\n");
+    if (e.thumbnail) {
+        r.image = {
+            url: e.thumbnail.url,
+            proxyURL: e.thumbnail.proxyURL || e.thumbnail.proxy_url,
+            width: e.thumbnail.width, height: e.thumbnail.height,
         };
     }
-
-    if (showFooter) result.footer = { text: "TikTok" };
-
-    return result;
+    const f = mkFooter("📷 Photo"); if (f) r.footer = f;
+    return r;
 }
 
-// ─── Sensitive content warning ──────────────────────────────────────
-function buildSensitiveEmbed(embed: any): any {
-    const showFooter = cfg("showFooter");
+// ─── Build: Sensitive → normal video with marker ─────────────────────
+function buildSensitiveNormal(e: any): any {
+    const url = e.rawUrl || e.url;
+    const r: any = {
+        type: "rich", url, color: cfg("embedColor"),
+        description: "**⚠️ Sensitive Content**",
+    };
+    const a = mkAuthor(e.title, url); if (a) r.author = a;
+    // Force non-zero dimensions on the player URL
+    if (e.video?.url) {
+        r.video = {
+            url: e.video.url,
+            proxyURL: e.video.proxyURL || e.video.proxy_url,
+            width: 720, height: 1280,
+        };
+    }
+    if (e.thumbnail?.url && !e.thumbnail.url.includes("tiktok-logo")) {
+        r.thumbnail = cpThumb(e.thumbnail);
+    }
+    const f = mkFooter("18+"); if (f) r.footer = f;
+    return r;
+}
+
+function buildSensitiveWarn(e: any): any {
     return {
         type: "rich",
-        url: embed.rawUrl || embed.url,
+        url: e.rawUrl || e.url,
         title: "⚠️ Sensitive Content",
-        description:
-            "This video is age-restricted by TikTok.\nVisit TikTok directly to view it.",
+        description: "This video is age-restricted by TikTok.\nVisit TikTok directly to view it.",
         color: 16237824,
-        ...(showFooter ? { footer: { text: "TikTok" } } : {}),
+        footer: mkFooter("18+"),
     };
 }
 
-// ─── Transform dispatcher ───────────────────────────────────────────
-
-function transformEmbed(embed: any): any | null {
-    if (!isTikTokEmbed(embed)) return embed;
-
-    // Sensitive content
-    if (isSensitiveEmbed(embed)) {
-        return cfg("sensitiveHandling") === "hide"
-            ? null
-            : buildSensitiveEmbed(embed);
+// ─── Transform ───────────────────────────────────────────────────────
+function transform(e: any): any | null {
+    if (!isTikTokEmbed(e)) return e;
+    if (isSensitive(e)) {
+        const m = cfg("sensitiveMode");
+        if (m === "hide") return null;
+        if (m === "warn") return buildSensitiveWarn(e);
+        return buildSensitiveNormal(e);
     }
-
-    // Photo vs Video
-    const url = embed.rawUrl || embed.url || "";
-    if (isPhotoPost(url)) return buildPhotoEmbed(embed);
-
-    return buildVideoEmbed(embed);
+    const url = e.rawUrl || e.url || "";
+    return isPhoto(url) ? buildPhoto(e) : buildVideo(e);
 }
 
-function patchMessageEmbeds(message: any) {
-    if (!message?.embeds?.length) return;
-
-    const patched: any[] = [];
-    for (const embed of message.embeds) {
-        const result = transformEmbed(embed);
-        if (result !== null) patched.push(result);
+function patchEmbeds(msg: any) {
+    if (!msg?.embeds?.length) return;
+    const out: any[] = [];
+    for (const e of msg.embeds) {
+        const r = transform(e);
+        if (r !== null) out.push(r);
     }
-    message.embeds = patched;
+    msg.embeds = out;
 }
 
-// ─── Plugin lifecycle ───────────────────────────────────────────────
-
+// ─── Lifecycle ───────────────────────────────────────────────────────
 let patches: (() => void)[] = [];
 
 export default {
     onLoad: () => {
         patches.push(
-            before("dispatch", FluxDispatcher, ([event]) => {
-                if (
-                    event.type === "MESSAGE_CREATE" ||
-                    event.type === "MESSAGE_UPDATE"
-                ) {
-                    if (event.message) patchMessageEmbeds(event.message);
+            before("dispatch", FluxDispatcher, ([ev]) => {
+                if (ev.type === "MESSAGE_CREATE" || ev.type === "MESSAGE_UPDATE") {
+                    if (ev.message) patchEmbeds(ev.message);
                 }
-
-                if (event.type === "LOAD_MESSAGES_SUCCESS") {
-                    if (Array.isArray(event.messages)) {
-                        for (const msg of event.messages) {
-                            patchMessageEmbeds(msg);
-                        }
-                    }
+                if (ev.type === "LOAD_MESSAGES_SUCCESS" && Array.isArray(ev.messages)) {
+                    for (const m of ev.messages) patchEmbeds(m);
                 }
             })
         );
     },
-    onUnload: () => {
-        for (const unpatch of patches) unpatch();
-        patches = [];
-    },
+    onUnload: () => { for (const u of patches) u(); patches = []; },
     settings: Settings,
 };
