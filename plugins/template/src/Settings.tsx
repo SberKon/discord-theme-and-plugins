@@ -1,7 +1,7 @@
 import { Forms, General } from "@vendetta/ui/components";
 import { React } from "@vendetta/metro/common";
 import { storage } from "@vendetta/plugin";
-import { DEFAULTS } from "./index";
+import { DEFAULTS, embedDebugInfo, discoverEmbedModules } from "./index";
 
 const { FormSection, FormRow, FormSwitch, FormDivider, FormText } = Forms;
 const { ScrollView, View, Text, TouchableOpacity, TextInput } = General;
@@ -540,11 +540,36 @@ export default () => {
                 previewFn={() => <SensitivePreview />}
             />
 
-            {/* ── About ── */}
-            <FormSection title="ℹ️ About">
+            {/* ── Debug / About ── */}
+            <FormSection title="🔧 Debug">
+                <FormRow
+                    label="Embed Component"
+                    subLabel={embedDebugInfo}
+                />
+                <FormDivider />
+                <FormRow
+                    label="🔍 Discover Embed Modules"
+                    subLabel="Scan all modules for embed-related names"
+                    trailing={<Text style={{ color: '#7289da', fontSize: 13 }}>Run</Text>}
+                    onPress={() => {
+                        const mods = discoverEmbedModules();
+                        const info = mods.length > 0
+                            ? mods.join('\n')
+                            : 'No embed modules found';
+                        (storage as any)._debugModules = info;
+                        forceUpdate();
+                    }}
+                />
+                {(storage as any)._debugModules && (
+                    <View style={{ padding: 12, backgroundColor: '#1a1a28', margin: 12, borderRadius: 8 }}>
+                        <Text style={{ color: '#abb2bf', fontSize: 11, fontFamily: 'monospace' }}>
+                            {(storage as any)._debugModules}
+                        </Text>
+                    </View>
+                )}
+                <FormDivider />
                 <FormText style={{ padding: 12, opacity: 0.6, fontSize: 12 }}>
                     TikTok Embed Fix • Custom embeds via API.
-                    {"\n"}Media uses Discord's proxy URLs for compatibility.
                     {"\n"}Links are never modified.
                 </FormText>
             </FormSection>
