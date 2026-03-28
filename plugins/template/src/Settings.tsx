@@ -1,144 +1,548 @@
 import { Forms, General } from "@vendetta/ui/components";
 import { React } from "@vendetta/metro/common";
 import { storage } from "@vendetta/plugin";
+import { DEFAULTS } from "./index";
 
 const { FormSection, FormRow, FormSwitch, FormInput, FormDivider, FormText } = Forms;
-const { ScrollView } = General;
+const { ScrollView, View, Text, TouchableOpacity, TextInput } = General;
 
+// ─── Color presets ───────────────────────────────────────────────────
 const COLOR_PRESETS = [
-    { name: "💜 Purple (tnktok)", value: 6513919, hex: "#635BFF" },
-    { name: "❤️ Red (fixtiktok)", value: 16711760, hex: "#FF0050" },
-    { name: "💗 Pink (TikTok)", value: 16657493, hex: "#FE2C55" },
-    { name: "💙 Blue", value: 3447003, hex: "#3498DB" },
-    { name: "💚 Green", value: 5763719, hex: "#57F287" },
-    { name: "🤍 White", value: 16777215, hex: "#FFFFFF" },
-    { name: "🖤 Dark", value: 2303786, hex: "#2326AA" },
+    { name: "💜 Purple", value: 0x638DFF, hex: "#638DFF" },
+    { name: "❤️ Red", value: 0xFF0050, hex: "#FF0050" },
+    { name: "💗 Pink", value: 0xFE2C55, hex: "#FE2C55" },
+    { name: "💙 Blue", value: 0x3498DB, hex: "#3498DB" },
+    { name: "💚 Green", value: 0x57F287, hex: "#57F287" },
+    { name: "🤍 White", value: 0xFFFFFF, hex: "#FFFFFF" },
+    { name: "🖤 Dark", value: 0x2B2D31, hex: "#2B2D31" },
 ];
 
-const SENSITIVE_MODES = [
-    { label: "📹 Show as normal video", value: "normal" },
-    { label: "⚠️ Show warning", value: "warn" },
-    { label: "🚫 Hide completely", value: "hide" },
+// ─── Available tags ──────────────────────────────────────────────────
+const TAGS = [
+    { tag: "{likes}", desc: "Like count (45K, 1.2M)" },
+    { tag: "{comments}", desc: "Comment count" },
+    { tag: "{shares}", desc: "Share count" },
+    { tag: "{views}", desc: "View count" },
+    { tag: "{saves}", desc: "Save count" },
+    { tag: "{description}", desc: "Post description (truncated)" },
+    { tag: "{author}", desc: "Author nickname" },
+    { tag: "{username}", desc: "Author @handle" },
 ];
 
-const FOOTER_PRESETS = ["TikTok", "fxTikTok", "TikTok Embed Fix", "🎵 TikTok"];
+// ─── Mock data for previews ──────────────────────────────────────────
+const MOCK = {
+    stats: { likes: 45200, comments: 630, shares: 1200, views: 892000, saves: 3100 },
+    author: { nickname: "Sample User", username: "sampleuser", avatar: null },
+    description: "This is a sample TikTok post description with some hashtags #fyp #viral",
+    publish: { iso: new Date().toISOString() },
+    media: { photoCount: 7 },
+};
 
+function fmtCount(v: number | null | undefined): string {
+    if (v === null || v === undefined) return "0";
+    if (v >= 1_000_000_000) return (v / 1_000_000_000).toFixed(1).replace(/\.0$/, "") + "B";
+    if (v >= 1_000_000) return (v / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
+    if (v >= 1_000) return (v / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
+    return String(v);
+}
+
+function truncDesc(text: string, max: number): string {
+    if (!text) return "";
+    if (text.length <= max) return text;
+    return text.slice(0, max).trimEnd() + "...";
+}
+
+function previewReplace(template: string, maxDesc: number): string {
+    return template
+        .replace(/\{likes\}/g, fmtCount(MOCK.stats.likes))
+        .replace(/\{comments\}/g, fmtCount(MOCK.stats.comments))
+        .replace(/\{shares\}/g, fmtCount(MOCK.stats.shares))
+        .replace(/\{views\}/g, fmtCount(MOCK.stats.views))
+        .replace(/\{saves\}/g, fmtCount(MOCK.stats.saves))
+        .replace(/\{description\}/g, truncDesc(MOCK.description, maxDesc))
+        .replace(/\{author\}/g, MOCK.author.nickname)
+        .replace(/\{username\}/g, `@${MOCK.author.username}`);
+}
+
+// ─── Styles ──────────────────────────────────────────────────────────
+const s = {
+    sectionHeader: {
+        flexDirection: "row" as const,
+        alignItems: "center" as const,
+        justifyContent: "space-between" as const,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        backgroundColor: "#1a1a2e",
+        borderRadius: 10,
+        marginHorizontal: 12,
+        marginTop: 10,
+    },
+    sectionTitle: {
+        color: "#e8e8f0",
+        fontSize: 15,
+        fontWeight: "700" as const,
+    },
+    arrow: {
+        color: "#6b6b8a",
+        fontSize: 14,
+    },
+    editorBody: {
+        marginHorizontal: 12,
+        paddingHorizontal: 14,
+        paddingTop: 10,
+        paddingBottom: 14,
+        backgroundColor: "#12121a",
+        borderBottomLeftRadius: 10,
+        borderBottomRightRadius: 10,
+        borderWidth: 1,
+        borderColor: "#2a2a40",
+        borderTopWidth: 0,
+    },
+    tagListWrap: {
+        flexDirection: "row" as const,
+        flexWrap: "wrap" as const,
+        gap: 6,
+        marginBottom: 10,
+    },
+    tagChip: {
+        backgroundColor: "rgba(88,101,242,0.15)",
+        borderWidth: 1,
+        borderColor: "rgba(88,101,242,0.3)",
+        borderRadius: 6,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+    },
+    tagText: {
+        color: "#7289da",
+        fontSize: 11,
+        fontFamily: "monospace",
+    },
+    tagDesc: {
+        color: "#6b6b8a",
+        fontSize: 10,
+        marginLeft: 4,
+    },
+    tagRow: {
+        flexDirection: "row" as const,
+        alignItems: "center" as const,
+        marginBottom: 4,
+    },
+    input: {
+        backgroundColor: "#1a1a28",
+        borderWidth: 1,
+        borderColor: "#2a2a40",
+        borderRadius: 8,
+        color: "#e8e8f0",
+        fontSize: 13,
+        fontFamily: "monospace",
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        marginVertical: 6,
+    },
+    previewWrap: {
+        backgroundColor: "#313338",
+        borderRadius: 8,
+        padding: 10,
+        marginTop: 8,
+    },
+    previewEmbed: {
+        borderLeftWidth: 4,
+        borderLeftColor: "#638DFF",
+        backgroundColor: "#2b2d31",
+        borderRadius: 6,
+        padding: 10,
+    },
+    previewAuthor: {
+        color: "#ffffff",
+        fontSize: 13,
+        fontWeight: "600" as const,
+        marginBottom: 4,
+    },
+    previewDesc: {
+        color: "#dbdee1",
+        fontSize: 13,
+        lineHeight: 18,
+        marginBottom: 6,
+    },
+    previewFooter: {
+        color: "#949ba4",
+        fontSize: 11,
+        marginTop: 6,
+    },
+    previewLabel: {
+        color: "#6b6b8a",
+        fontSize: 10,
+        fontWeight: "600" as const,
+        textTransform: "uppercase" as const,
+        letterSpacing: 1,
+        marginBottom: 4,
+    },
+    resetBtn: {
+        alignSelf: "flex-end" as const,
+        backgroundColor: "rgba(255,0,80,0.15)",
+        borderWidth: 1,
+        borderColor: "rgba(255,0,80,0.3)",
+        borderRadius: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        marginTop: 8,
+    },
+    resetText: {
+        color: "#ff0050",
+        fontSize: 11,
+        fontWeight: "700" as const,
+    },
+    colorRow: {
+        flexDirection: "row" as const,
+        flexWrap: "wrap" as const,
+        gap: 8,
+        marginVertical: 8,
+        paddingHorizontal: 4,
+    },
+    colorDot: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        borderWidth: 2,
+    },
+    label: {
+        color: "#6b6b8a",
+        fontSize: 11,
+        fontWeight: "600" as const,
+        textTransform: "uppercase" as const,
+        letterSpacing: 1,
+        marginTop: 10,
+        marginBottom: 4,
+    },
+};
+
+// ─── Collapsible Editor Component ────────────────────────────────────
+function CollapsibleEditor({
+    title,
+    icon,
+    storageKey,
+    defaultVal,
+    showTags,
+    extraFields,
+    previewFn,
+    forceUpdate,
+}: {
+    title: string;
+    icon: string;
+    storageKey: string;
+    defaultVal: string;
+    showTags: boolean;
+    extraFields?: React.ReactNode;
+    previewFn: (template: string) => React.ReactNode;
+    forceUpdate: () => void;
+}) {
+    const [open, setOpen] = React.useState(false);
+    const current = (storage as any)[storageKey] ?? defaultVal;
+
+    return (
+        <View>
+            <TouchableOpacity
+                style={s.sectionHeader}
+                onPress={() => setOpen(!open)}
+            >
+                <Text style={s.sectionTitle}>{icon} {title}</Text>
+                <Text style={s.arrow}>{open ? "▼" : "▶"}</Text>
+            </TouchableOpacity>
+
+            {open && (
+                <View style={s.editorBody}>
+                    {/* Tags reference */}
+                    {showTags && (
+                        <View>
+                            <Text style={s.previewLabel}>Available tags</Text>
+                            <View style={s.tagListWrap}>
+                                {TAGS.map((t) => (
+                                    <View key={t.tag} style={s.tagRow}>
+                                        <View style={s.tagChip}>
+                                            <Text style={s.tagText}>{t.tag}</Text>
+                                        </View>
+                                        <Text style={s.tagDesc}>{t.desc}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        </View>
+                    )}
+
+                    {/* Template input */}
+                    <Text style={s.label}>Template</Text>
+                    <TextInput
+                        style={s.input}
+                        value={current}
+                        onChangeText={(v: string) => {
+                            (storage as any)[storageKey] = v;
+                            forceUpdate();
+                        }}
+                        placeholder={defaultVal}
+                        placeholderTextColor="#6b6b8a"
+                        multiline
+                    />
+
+                    {/* Extra fields (e.g. sensitive title) */}
+                    {extraFields}
+
+                    {/* Live preview */}
+                    <Text style={s.previewLabel}>Preview</Text>
+                    {previewFn(current)}
+
+                    {/* Reset button */}
+                    <TouchableOpacity
+                        style={s.resetBtn}
+                        onPress={() => {
+                            (storage as any)[storageKey] = defaultVal;
+                            forceUpdate();
+                        }}
+                    >
+                        <Text style={s.resetText}>↻ Reset to default</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+        </View>
+    );
+}
+
+// ─── Preview renders ─────────────────────────────────────────────────
+function VideoPreview({ template }: { template: string }) {
+    const plugin = (storage as any).pluginName || DEFAULTS.pluginName;
+    const color = `#${((storage as any).embedColor || DEFAULTS.embedColor).toString(16).padStart(6, "0")}`;
+    const maxDesc = (storage as any).maxDescLength || DEFAULTS.maxDescLength;
+    const desc = previewReplace(template, maxDesc);
+    const ts = "28.03.2026, 19:38";
+
+    return (
+        <View style={s.previewWrap}>
+            <View style={[s.previewEmbed, { borderLeftColor: color }]}>
+                <Text style={s.previewAuthor}>
+                    {MOCK.author.nickname} (@{MOCK.author.username})
+                </Text>
+                <Text style={s.previewDesc}>{desc}</Text>
+                <View style={{
+                    backgroundColor: "#111",
+                    borderRadius: 4,
+                    width: 120,
+                    height: 213,
+                    alignItems: "center",
+                    justifyContent: "center",
+                }}>
+                    <Text style={{ color: "#6b6b8a", fontSize: 11 }}>▶ Video</Text>
+                </View>
+                <Text style={s.previewFooter}>{plugin} • {ts}</Text>
+            </View>
+        </View>
+    );
+}
+
+function PhotoPreview({ template }: { template: string }) {
+    const plugin = (storage as any).pluginName || DEFAULTS.pluginName;
+    const color = `#${((storage as any).embedColor || DEFAULTS.embedColor).toString(16).padStart(6, "0")}`;
+    const maxDesc = (storage as any).maxDescLength || DEFAULTS.maxDescLength;
+    const desc = previewReplace(template, maxDesc);
+    const ts = "28.03.2026, 19:38";
+    const totalPhotos = MOCK.media.photoCount;
+    const range = totalPhotos <= 4 ? `1 - ${totalPhotos}` : `1 - 4 of ${totalPhotos}`;
+
+    return (
+        <View style={s.previewWrap}>
+            <View style={[s.previewEmbed, { borderLeftColor: color }]}>
+                <Text style={s.previewAuthor}>
+                    {MOCK.author.nickname} (@{MOCK.author.username})
+                </Text>
+                <Text style={s.previewDesc}>{desc}</Text>
+                <View style={{
+                    flexDirection: "row",
+                    flexWrap: "wrap",
+                    gap: 4,
+                    marginBottom: 4,
+                }}>
+                    {[1, 2, 3, 4].map((i) => (
+                        <View key={i} style={{
+                            backgroundColor: "#111",
+                            borderRadius: 4,
+                            width: 60,
+                            height: 60,
+                            alignItems: "center",
+                            justifyContent: "center",
+                        }}>
+                            <Text style={{ color: "#6b6b8a", fontSize: 9 }}>📷 {i}</Text>
+                        </View>
+                    ))}
+                </View>
+                <Text style={s.previewFooter}>{plugin} • {range} • {ts}</Text>
+            </View>
+        </View>
+    );
+}
+
+function SensitivePreview() {
+    const title = (storage as any).sensitiveTitle || DEFAULTS.sensitiveTitle;
+    const desc = (storage as any).sensitiveDesc || DEFAULTS.sensitiveDesc;
+
+    return (
+        <View style={s.previewWrap}>
+            <View style={[s.previewEmbed, { borderLeftColor: "#faa61a" }]}>
+                <Text style={[s.previewAuthor, { color: "#faa61a" }]}>{title}</Text>
+                <Text style={s.previewDesc}>{desc}</Text>
+            </View>
+        </View>
+    );
+}
+
+// ─── Main Settings ───────────────────────────────────────────────────
 export default () => {
     const [, forceUpdate] = React.useReducer((x: number) => x + 1, 0);
 
-    // Defaults
-    if (storage.embedColor === undefined) storage.embedColor = 6513919;
-    if (storage.footerText === undefined) storage.footerText = "TikTok";
-    if (storage.showFooter === undefined) storage.showFooter = true;
-    if (storage.showAuthor === undefined) storage.showAuthor = true;
-    if (storage.showStats === undefined) storage.showStats = true;
-    if (storage.sensitiveMode === undefined) storage.sensitiveMode = "normal";
+    // Init defaults
+    if ((storage as any).pluginName === undefined) (storage as any).pluginName = DEFAULTS.pluginName;
+    if ((storage as any).embedColor === undefined) (storage as any).embedColor = DEFAULTS.embedColor;
+    if ((storage as any).maxDescLength === undefined) (storage as any).maxDescLength = DEFAULTS.maxDescLength;
+    if ((storage as any).videoDescLine === undefined) (storage as any).videoDescLine = DEFAULTS.videoDescLine;
+    if ((storage as any).photoDescLine === undefined) (storage as any).photoDescLine = DEFAULTS.photoDescLine;
+    if ((storage as any).sensitiveTitle === undefined) (storage as any).sensitiveTitle = DEFAULTS.sensitiveTitle;
+    if ((storage as any).sensitiveDesc === undefined) (storage as any).sensitiveDesc = DEFAULTS.sensitiveDesc;
 
-    const color = storage.embedColor as number;
-    const colorPreset = COLOR_PRESETS.find((p) => p.value === color);
+    const color = (storage as any).embedColor as number;
     const colorHex = `#${color.toString(16).padStart(6, "0").toUpperCase()}`;
-
-    const sensMode = storage.sensitiveMode as string;
-    const sensLabel = SENSITIVE_MODES.find((m) => m.value === sensMode);
+    const colorPreset = COLOR_PRESETS.find((p) => p.value === color);
 
     return (
         <ScrollView>
-            {/* ── Appearance ── */}
-            <FormSection title="Embed Appearance">
+            {/* ── General ── */}
+            <FormSection title="⚙️ General">
+                {/* Plugin Name */}
                 <FormRow
-                    label="Show Author"
-                    subLabel="Author name and @handle at the top"
-                    trailing={
-                        <FormSwitch
-                            value={storage.showAuthor !== false}
-                            onValueChange={(v: boolean) => {
-                                storage.showAuthor = v;
-                                forceUpdate();
-                            }}
-                        />
-                    }
+                    label="Plugin Name (Footer)"
+                    subLabel={`"${(storage as any).pluginName || DEFAULTS.pluginName}"`}
                 />
+                <View style={{ paddingHorizontal: 16, paddingBottom: 10 }}>
+                    <TextInput
+                        style={s.input}
+                        value={(storage as any).pluginName || ""}
+                        onChangeText={(v: string) => {
+                            (storage as any).pluginName = v;
+                            forceUpdate();
+                        }}
+                        placeholder={DEFAULTS.pluginName}
+                        placeholderTextColor="#6b6b8a"
+                    />
+                </View>
                 <FormDivider />
 
-                <FormRow
-                    label="Show Stats"
-                    subLabel="❤️ likes  💬 comments"
-                    trailing={
-                        <FormSwitch
-                            value={storage.showStats !== false}
-                            onValueChange={(v: boolean) => {
-                                storage.showStats = v;
-                                forceUpdate();
-                            }}
-                        />
-                    }
-                />
-                <FormDivider />
-
-                <FormRow
-                    label="Show Footer"
-                    subLabel="Text at the bottom of the embed"
-                    trailing={
-                        <FormSwitch
-                            value={storage.showFooter !== false}
-                            onValueChange={(v: boolean) => {
-                                storage.showFooter = v;
-                                forceUpdate();
-                            }}
-                        />
-                    }
-                />
-                <FormDivider />
-
-                <FormRow
-                    label="Footer Text"
-                    subLabel={`Current: "${storage.footerText || "TikTok"}"`}
-                    onPress={() => {
-                        const cur = (storage.footerText as string) || "TikTok";
-                        const idx = FOOTER_PRESETS.indexOf(cur);
-                        storage.footerText =
-                            FOOTER_PRESETS[(idx + 1) % FOOTER_PRESETS.length];
-                        forceUpdate();
-                    }}
-                />
-                <FormDivider />
-
+                {/* Embed Color */}
                 <FormRow
                     label="Embed Color"
                     subLabel={`${colorPreset?.name || "Custom"} — ${colorHex}`}
-                    onPress={() => {
-                        const idx = COLOR_PRESETS.findIndex((p) => p.value === color);
-                        const next = COLOR_PRESETS[(idx + 1) % COLOR_PRESETS.length];
-                        storage.embedColor = next.value;
-                        forceUpdate();
-                    }}
                 />
+                <View style={[s.colorRow, { paddingHorizontal: 16, paddingBottom: 8 }]}>
+                    {COLOR_PRESETS.map((p) => (
+                        <TouchableOpacity
+                            key={p.value}
+                            onPress={() => {
+                                (storage as any).embedColor = p.value;
+                                forceUpdate();
+                            }}
+                            style={[
+                                s.colorDot,
+                                {
+                                    backgroundColor: p.hex,
+                                    borderColor: p.value === color ? "#fff" : "transparent",
+                                },
+                            ]}
+                        />
+                    ))}
+                </View>
+                <FormDivider />
+
+                {/* Max Description Length */}
+                <FormRow
+                    label="Max Description Length"
+                    subLabel={`${(storage as any).maxDescLength || DEFAULTS.maxDescLength} characters`}
+                />
+                <View style={{ paddingHorizontal: 16, paddingBottom: 10 }}>
+                    <TextInput
+                        style={s.input}
+                        value={String((storage as any).maxDescLength || DEFAULTS.maxDescLength)}
+                        onChangeText={(v: string) => {
+                            const n = parseInt(v, 10);
+                            if (!isNaN(n) && n > 0) {
+                                (storage as any).maxDescLength = n;
+                                forceUpdate();
+                            }
+                        }}
+                        placeholder="150"
+                        placeholderTextColor="#6b6b8a"
+                        keyboardType="number-pad"
+                    />
+                </View>
             </FormSection>
 
-            {/* ── Sensitive Content ── */}
-            <FormSection title="Sensitive Content (18+)">
-                <FormRow
-                    label="Sensitive Mode"
-                    subLabel={sensLabel?.label || "Unknown"}
-                    onPress={() => {
-                        const idx = SENSITIVE_MODES.findIndex((m) => m.value === sensMode);
-                        const next = SENSITIVE_MODES[(idx + 1) % SENSITIVE_MODES.length];
-                        storage.sensitiveMode = next.value;
-                        forceUpdate();
-                    }}
-                />
-                <FormDivider />
-                <FormText style={{ padding: 12, opacity: 0.5, fontSize: 12 }}>
-                    Tap to cycle. "Show as normal video" forces the player
-                    with full dimensions so age-restricted content can play.
-                </FormText>
-            </FormSection>
+            {/* ── Video Embed Editor ── */}
+            <CollapsibleEditor
+                title="Video Embed"
+                icon="🎬"
+                storageKey="videoDescLine"
+                defaultVal={DEFAULTS.videoDescLine}
+                showTags={true}
+                forceUpdate={forceUpdate}
+                previewFn={(tpl) => <VideoPreview template={tpl} />}
+            />
+
+            {/* ── Photo Embed Editor ── */}
+            <CollapsibleEditor
+                title="Photo Embed"
+                icon="📷"
+                storageKey="photoDescLine"
+                defaultVal={DEFAULTS.photoDescLine}
+                showTags={true}
+                forceUpdate={forceUpdate}
+                previewFn={(tpl) => <PhotoPreview template={tpl} />}
+            />
+
+            {/* ── Sensitive Content Editor ── */}
+            <CollapsibleEditor
+                title="Sensitive Content"
+                icon="⚠️"
+                storageKey="sensitiveDesc"
+                defaultVal={DEFAULTS.sensitiveDesc}
+                showTags={false}
+                forceUpdate={forceUpdate}
+                extraFields={
+                    <View>
+                        <Text style={s.label}>Title</Text>
+                        <TextInput
+                            style={s.input}
+                            value={(storage as any).sensitiveTitle || ""}
+                            onChangeText={(v: string) => {
+                                (storage as any).sensitiveTitle = v;
+                                forceUpdate();
+                            }}
+                            placeholder={DEFAULTS.sensitiveTitle}
+                            placeholderTextColor="#6b6b8a"
+                        />
+                        {/* Reset title too */}
+                        <TouchableOpacity
+                            style={[s.resetBtn, { marginTop: 4 }]}
+                            onPress={() => {
+                                (storage as any).sensitiveTitle = DEFAULTS.sensitiveTitle;
+                                (storage as any).sensitiveDesc = DEFAULTS.sensitiveDesc;
+                                forceUpdate();
+                            }}
+                        >
+                            <Text style={s.resetText}>↻ Reset title & description</Text>
+                        </TouchableOpacity>
+                    </View>
+                }
+                previewFn={() => <SensitivePreview />}
+            />
 
             {/* ── About ── */}
-            <FormSection title="About">
-                <FormText style={{ padding: 12, opacity: 0.6 }}>
-                    TikTok Embed Fix • Transforms embeds into styled cards.
-                    {"\n"}Links are never modified.
+            <FormSection title="ℹ️ About">
+                <FormText style={{ padding: 12, opacity: 0.6, fontSize: 12 }}>
+                    TikTok Embed Fix • Custom embeds via API.
+                    {"\n"}Links are never modified. Template tags get replaced live.
                 </FormText>
             </FormSection>
         </ScrollView>
