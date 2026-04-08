@@ -1,5 +1,5 @@
 {
-    "name": "Velvet Night",
+    "name": "Velvet Night | RainTweak",
     "description": "Midnight purple atmosphere. Calm, dark, and just a little dramatic.",
     "authors": [
         {
@@ -186,7 +186,7 @@
             "#393552"
         ],
         "REDESIGN_BUTTON_PRIMARY_BACKGROUND": [
-            "#c4a7e7"
+            "#9e7bc0"
         ],
         "REDESIGN_BUTTON_PRIMARY_PRESSED_BACKGROUND": [
             "#9e6bc4"
@@ -260,10 +260,10 @@
         "BLACK_500": "#000000B2",
         "PRIMARY_100": "#e0def4",
         "PRIMARY_200": "#e0def4",
-        "PRIMARY_300": "#ea9a97",
+        "PRIMARY_300": "#e0def4",
         "PRIMARY_330": "#e0def4",
         "PRIMARY_360": "#908caa",
-        "PRIMARY_400": "#ea9a97",
+        "PRIMARY_400": "#c4a7e7",
         "PRIMARY_460": "#393552",
         "PRIMARY_500": "#c4a7e7",
         "PRIMARY_530": "#c4a7e7",
@@ -364,6 +364,12 @@
         "YELLOW_830": "#f6c177",
         "YELLOW_860": "#f6c177",
         "YELLOW_900": "#f6c177",
+        "ORANGE_300": "#8a70b0",
+        "ORANGE_400": "#7a5fa0",
+        "ORANGE_500": "#604c88",
+        "ORANGE_600": "#604c88",
+        "ORANGE_700": "#604c88",
+        "ORANGE_800": "#604c88",
         "WHITE": "#e0def4",
         "WHITE_500": "#e0def4",
         "WHITE_630": "#908caa"
